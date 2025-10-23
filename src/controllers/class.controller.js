@@ -1,14 +1,13 @@
 const Class = require('../models/Class.model');
 const Student = require('../models/Student.model');
 
-
 // @desc    Create a new class
 // @route   POST /api/classes
 // @access  Private/Admin
 exports.createClass = async (req, res, next) => {
     try {
-        const { name, grade } = req.body;
-        const newClass = await Class.create({ name, grade });
+        const { name, grade, section } = req.body;
+        const newClass = await Class.create({ name, grade, section });
         res.status(201).json({ success: true, data: newClass });
     } catch (err) {
         next(err);
@@ -33,8 +32,8 @@ exports.getAllClasses = async (req, res, next) => {
 exports.getClassById = async (req, res, next) => {
     try {
         const singleClass = await Class.findById(req.params.id)
-            .populate('classTeacher', 'name email') // Get teacher's name and email
-            .populate('students', 'name studentId'); // Get students' name and ID
+            .populate('classTeacher', 'name email')
+            .populate('students', 'name studentId');
 
         if (!singleClass) {
             return res.status(404).json({ message: `Class not found` });
@@ -63,7 +62,6 @@ exports.updateClass = async (req, res, next) => {
     }
 };
 
-
 // @desc    Delete a class
 // @route   DELETE /api/classes/:id
 // @access  Private/Admin
@@ -84,17 +82,15 @@ exports.deleteClass = async (req, res, next) => {
 // @access  Private/Admin
 exports.addStudentToClass = async (req, res, next) => {
     try {
-        const { studentId } = req.body; // Mongoose _id of the student
+        const { studentId } = req.body;
         const classId = req.params.classId;
 
-        // Add student to the class's student array
         const updatedClass = await Class.findByIdAndUpdate(
             classId,
-            { $addToSet: { students: studentId } }, // $addToSet prevents duplicates
+            { $addToSet: { students: studentId } },
             { new: true }
         );
 
-        // Also update the student's document to set their class
         await Student.findByIdAndUpdate(studentId, { class: classId });
 
         if (!updatedClass) {

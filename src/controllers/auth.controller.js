@@ -3,79 +3,49 @@ const jwt = require('jsonwebtoken');
 const sendEmail = require('../utils/sendEmail');
 const crypto = require('crypto');
 
-// Utility function to generate JWT
-const generateToken = (id, role) => {
-    return jwt.sign({ user: { id, role } }, process.env.JWT_SECRET, {
-        expiresIn: '1d', // Token expires in 1 day
-    });
-};
+// ... (registerUser, loginUser, and generateToken functions remain the same) ...
 
-// @desc    Register a new user
-// @route   POST /api/auth/register
-// @access  Public
 exports.registerUser = async (req, res, next) => {
     const { name, email, password, role } = req.body;
 
     try {
-        // Check if user already exists
         let user = await User.findOne({ email });
         if (user) {
             return res.status(400).json({ message: 'User already exists' });
         }
-
-        // Create a new user instance
         user = new User({
             name,
             email,
             password,
             role,
         });
-
-        // Password hashing is handled by the pre-save hook in the User model
         await user.save();
-
-        // Generate token
         const token = generateToken(user._id, user.role);
-
         res.status(201).json({
             success: true,
             message: 'User registered successfully',
             token,
         });
     } catch (err) {
-        next(err); // Pass error to the central error handler
+        next(err);
     }
 };
 
-// @desc    Auth user & get token (Login)
-// @route   POST /api/auth/login
-// @access  Public
 exports.loginUser = async (req, res, next) => {
     const { email, password } = req.body;
-
-    // Check for email and password
     if (!email || !password) {
         return res.status(400).json({ message: 'Please provide email and password' });
     }
-
     try {
-        // Find user by email (include password in the result)
         const user = await User.findOne({ email }).select('+password');
-
         if (!user) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
-
-        // Check if password matches
         const isMatch = await user.matchPassword(password);
-
         if (!isMatch) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
-
-        // Generate token
         const token = generateToken(user._id, user.role);
-
         res.status(200).json({
             success: true,
             message: 'Logged in successfully',
@@ -86,9 +56,6 @@ exports.loginUser = async (req, res, next) => {
     }
 };
 
-// @desc    Forgot password
-// @route   POST /api/auth/forgotpassword
-// @access  Public
 exports.forgotPassword = async (req, res, next) => {
     const { email } = req.body;
 
@@ -96,25 +63,20 @@ exports.forgotPassword = async (req, res, next) => {
         const user = await User.findOne({ email });
 
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json({ message: 'User with that email not found' });
         }
 
-        // Get reset token from the user model method
         const resetToken = user.getResetPasswordToken();
-
         await user.save({ validateBeforeSave: false });
 
-        // Create reset URL for the frontend
-        // Example: http://localhost:3000/resetpassword/THE_TOKEN
-        // You should change the base URL based on your frontend route
-        const resetUrl = `${req.protocol}://${req.get('host')}/api/auth/resetpassword/${resetToken}`;
+        const resetUrl = `${process.env.FRONTEND_URL}/en/reset-password/${resetToken}`;
 
-        const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a PUT request to: \n\n ${resetUrl}`;
+        const message = `You requested a password reset. Please click on this link to reset your password: \n\n ${resetUrl} \n\nIf you did not request this, please ignore this email.`;
 
         try {
             await sendEmail({
                 email: user.email,
-                subject: 'Password Reset Token',
+                subject: 'Password Reset Request',
                 message,
             });
 
@@ -143,8 +105,10 @@ exports.resetPassword = async (req, res, next) => {
             .update(req.params.token)
             .digest('hex');
 
+        // Find user by the hashed token
         const user = await User.findOne({
-            passwordResetToken,
+            // FIX: Map the schema field 'passwordResetToken' to the correct variable 'resetPasswordToken'
+            passwordResetToken: resetPasswordToken,
             passwordResetExpires: { $gt: Date.now() }, // Check if token is not expired
         });
 
@@ -164,3 +128,10 @@ exports.resetPassword = async (req, res, next) => {
         next(err);
     }
 };
+
+function generateToken(id, role) {
+    return jwt.sign({ user: { id, role } }, process.env.JWT_SECRET, {
+        expiresIn: '1d',
+    });
+}
+

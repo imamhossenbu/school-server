@@ -6,19 +6,11 @@ const subjectSchema = new mongoose.Schema({
         required: true,
         trim: true,
     },
-    subjectCode: {
-        type: String,
-        required: true,
-        unique: true,
-        trim: true,
-    },
-    // Which class this subject belongs to
     class: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Class',
         required: true,
     },
-    // Which teacher is assigned to this subject for this class
     teacher: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Teacher',
@@ -29,3 +21,4 @@ const subjectSchema = new mongoose.Schema({
 
 const Subject = mongoose.model('Subject', subjectSchema);
 module.exports = Subject;
+

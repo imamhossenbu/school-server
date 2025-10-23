@@ -1,26 +1,27 @@
 const Subject = require('../models/Subject.model');
 
 // @desc    Create a new subject
-// @route   POST /api/subjects
-// @access  Private/Admin
 exports.createSubject = async (req, res, next) => {
     try {
-        const { name, subjectCode, classId, teacherId } = req.body;
-        const subject = await Subject.create({
+        const { name, classId, teacherId } = req.body;
+
+        const subjectData = {
             name,
-            subjectCode,
             class: classId,
-            teacher: teacherId,
-        });
+        };
+
+        if (teacherId) {
+            subjectData.teacher = teacherId;
+        }
+
+        const subject = await Subject.create(subjectData);
         res.status(201).json({ success: true, data: subject });
     } catch (err) {
         next(err);
     }
 };
 
-// @desc    Get all subjects (can be filtered by class)
-// @route   GET /api/subjects
-// @access  Private/Admin
+// @desc    Get all subjects
 exports.getAllSubjects = async (req, res, next) => {
     try {
         let query = {};
@@ -28,20 +29,28 @@ exports.getAllSubjects = async (req, res, next) => {
             query.class = req.query.classId;
         }
         const subjects = await Subject.find(query)
-            .populate('class', 'name grade')
-            .populate('teacher', 'name');
+            .populate('class', 'name section grade')
+            // FIX: Shothik populate method bebohar kora hoyeche
+            .populate({
+                path: 'teacher',
+                populate: {
+                    path: 'user',
+                    select: 'name'
+                }
+            });
         res.status(200).json({ success: true, count: subjects.length, data: subjects });
     } catch (err) {
         next(err);
     }
 };
 
-// @desc    Update a subject (e.g., assign a teacher)
-// @route   PUT /api/subjects/:id
-// @access  Private/Admin
+// @desc    Update a subject
 exports.updateSubject = async (req, res, next) => {
     try {
-        const subject = await Subject.findByIdAndUpdate(req.params.id, req.body, {
+        const { name, classId, teacherId } = req.body;
+        const updateData = { name, class: classId, teacher: teacherId || null };
+
+        const subject = await Subject.findByIdAndUpdate(req.params.id, updateData, {
             new: true,
             runValidators: true,
         });
@@ -55,8 +64,6 @@ exports.updateSubject = async (req, res, next) => {
 };
 
 // @desc    Delete a subject
-// @route   DELETE /api/subjects/:id
-// @access  Private/Admin
 exports.deleteSubject = async (req, res, next) => {
     try {
         const subject = await Subject.findByIdAndDelete(req.params.id);
@@ -68,3 +75,4 @@ exports.deleteSubject = async (req, res, next) => {
         next(err);
     }
 };
+

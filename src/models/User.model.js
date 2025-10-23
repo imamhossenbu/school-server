@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const crypto = require('crypto'); // Built-in node module
+const crypto = require('crypto');
 
 const userSchema = new mongoose.Schema({
     name: {
@@ -30,44 +30,39 @@ const userSchema = new mongoose.Schema({
     avatar: {
         type: String,
     },
-    // Fields for password reset
     passwordResetToken: String,
     passwordResetExpires: Date,
 }, {
     timestamps: true,
 });
 
-// Encrypt password before saving
+// Encrypt password before saving the user
 userSchema.pre('save', async function (next) {
+    // Only run this function if password was actually modified
     if (!this.isModified('password')) {
-        next();
+        return next(); // <-- Important: return added
     }
+
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
+    next(); // <-- Important: This was missing
 });
 
-// Method to compare password
+// Method to compare entered password with hashed password in DB
 userSchema.methods.matchPassword = async function (enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
 };
 
 // Method to generate and hash password reset token
 userSchema.methods.getResetPasswordToken = function () {
-    // Generate token
     const resetToken = crypto.randomBytes(20).toString('hex');
-
-    // Hash token and set to passwordResetToken field
     this.passwordResetToken = crypto
         .createHash('sha256')
         .update(resetToken)
         .digest('hex');
-
-    // Set expire time (10 minutes)
     this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
-
-    return resetToken; // Return the unhashed token
+    return resetToken;
 };
-
 
 const User = mongoose.model('User', userSchema);
 module.exports = User;

@@ -39,7 +39,7 @@ app.use(express.json());
 
 // STEP 4: Define API Routes
 app.get('/', (req, res) => {
-    res.send('School Management API is running perfectly in the server...');
+    res.send('School Management API is running on the server...');
     console.log('All are okey');
 });
 
